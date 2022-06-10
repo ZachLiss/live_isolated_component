@@ -10,27 +10,20 @@ defmodule TestAppWeb.Live.ComplexButtonComponentTest do
   import Phoenix.LiveViewTest
 
   test "sends a @on_click info event" do
-    # handle_info_spy = Spy.handle_info()
-    self() |> IO.inspect(label: :test_pid)
-
     {:ok, view, _html} =
       live_isolated_component(ComplexButtonComponent,
         assigns: %{on_click: :i_was_clicked}
-        # handle_info: handle_info_spy.callback
       )
 
-    IO.inspect(view)
-
     view |> element("button") |> render_click()
 
+    # we can assert_receive or check the last_info
+    assert_receive {:handle_info, {:i_was_clicked, 1}}
     assert {:i_was_clicked, 1} == LiveIsolatedComponent.last_info(view)
 
-    # assert_receive {:handle_info, {:i_was_clicked, 1}}
-    # assert %{arguments: {{:i_was_clicked, 1}, _s}} = Spy.last_event(handle_info_spy)
-
     view |> element("button") |> render_click()
 
-    # assert %{arguments: {{:i_was_clicked, 2}, _s}} = Spy.last_event(handle_info_spy)
+    assert_receive {:handle_info, {:i_was_clicked, 2}}
     assert {:i_was_clicked, 2} == LiveIsolatedComponent.last_info(view)
   end
 

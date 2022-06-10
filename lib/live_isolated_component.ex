@@ -17,7 +17,7 @@ defmodule LiveIsolatedComponent do
       |> :sys.get_state()
       |> Map.get(:socket)
 
-    socket.private.last_info |> IO.inspect(label: :last_info)
+    socket.private.last_info
   end
 
   defmodule View do
@@ -31,11 +31,10 @@ defmodule LiveIsolatedComponent do
     @store_agent_key "live_isolated_component_store_agent"
 
     def mount(_params, session, socket) do
-      IO.inspect(session, label: :session)
-      put_private(socket, :handle_info_messages, [])
-
       socket =
         socket
+        # store the :test_pid in our private data
+        |> put_private(:test_pid, session["test_pid"])
         |> assign(:store_agent, session[@store_agent_key])
         |> then(fn socket ->
           agent = store_agent_pid(socket)
@@ -90,18 +89,17 @@ defmodule LiveIsolatedComponent do
     end
 
     def handle_info(message, socket) do
+      # if we want, we can track the last received message 
+      # we could also push this message onto a list
       socket = put_private(socket, :last_info, message)
+
+      # send a message back to our test process. this let's us
+      # leverage assert_receive to block until we've received this
+      # message
+      send(get_private(socket, :test_pid), {:handle_info, message})
 
       {:noreply, socket}
     end
-
-    # handle_info_messages = get_private(socket, :handle_info_messages)
-    # handle_info = socket |> store_agent_pid() |> StoreAgent.get_handle_info()
-    # original_assigns = socket.assigns
-
-    # {:noreply, socket} = handle_info.(event, normalize_socket(socket, original_assigns))
-
-    # {:noreply, denormalize_socket(socket, original_assigns)}
 
     def get_private(%{private: private}, key) when is_atom(key) do
       Map.get(private, key)
@@ -183,7 +181,9 @@ defmodule LiveIsolatedComponent do
 
       live_isolated(build_conn(), View,
         session: %{
-          unquote(@store_agent_key) => store_agent
+          unquote(@store_agent_key) => store_agent,
+          # pass the test pid into the session
+          "test_pid" => self()
         }
       )
     end
