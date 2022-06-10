@@ -11,6 +11,15 @@ defmodule LiveIsolatedComponent do
   @assign_updates_event "live_isolated_component_update_assigns_event"
   @store_agent_key "live_isolated_component_store_agent"
 
+  def last_info(view) do
+    socket =
+      view.pid
+      |> :sys.get_state()
+      |> Map.get(:socket)
+
+    socket.private.last_info |> IO.inspect(label: :last_info)
+  end
+
   defmodule View do
     @moduledoc false
 
@@ -22,6 +31,9 @@ defmodule LiveIsolatedComponent do
     @store_agent_key "live_isolated_component_store_agent"
 
     def mount(_params, session, socket) do
+      IO.inspect(session, label: :session)
+      put_private(socket, :handle_info_messages, [])
+
       socket =
         socket
         |> assign(:store_agent, session[@store_agent_key])
@@ -77,13 +89,26 @@ defmodule LiveIsolatedComponent do
       {:noreply, assign(socket, :assigns, values)}
     end
 
-    def handle_info(event, socket) do
-      handle_info = socket |> store_agent_pid() |> StoreAgent.get_handle_info()
-      original_assigns = socket.assigns
+    def handle_info(message, socket) do
+      socket = put_private(socket, :last_info, message)
 
-      {:noreply, socket} = handle_info.(event, normalize_socket(socket, original_assigns))
+      {:noreply, socket}
+    end
 
-      {:noreply, denormalize_socket(socket, original_assigns)}
+    # handle_info_messages = get_private(socket, :handle_info_messages)
+    # handle_info = socket |> store_agent_pid() |> StoreAgent.get_handle_info()
+    # original_assigns = socket.assigns
+
+    # {:noreply, socket} = handle_info.(event, normalize_socket(socket, original_assigns))
+
+    # {:noreply, denormalize_socket(socket, original_assigns)}
+
+    def get_private(%{private: private}, key) when is_atom(key) do
+      Map.get(private, key)
+    end
+
+    def put_private(%{private: private} = socket, key, value) when is_atom(key) do
+      %{socket | private: Map.put(private, key, value)}
     end
 
     defp store_agent_pid(%{assigns: %{store_agent: pid}}) when is_pid(pid), do: pid
