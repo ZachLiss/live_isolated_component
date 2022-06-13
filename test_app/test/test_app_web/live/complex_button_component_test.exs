@@ -18,12 +18,13 @@ defmodule TestAppWeb.Live.ComplexButtonComponentTest do
     view |> element("button") |> render_click()
 
     # we can assert_receive or check the last_info
-    assert_receive {:handle_info, {:i_was_clicked, 1}}
+    LiveIsolatedComponent.assert_receive_info(view, {:i_was_clicked, 1})
     assert {:i_was_clicked, 1} == LiveIsolatedComponent.last_info(view)
 
     view |> element("button") |> render_click()
 
-    assert_receive {:handle_info, {:i_was_clicked, 2}}
+    view_pid = view.pid
+    assert_receive {:handle_info, view_pid, {:i_was_clicked, 2}}
     assert {:i_was_clicked, 2} == LiveIsolatedComponent.last_info(view)
   end
 

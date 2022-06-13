@@ -6,6 +6,9 @@ defmodule LiveIsolatedComponent do
   import Phoenix.ConnTest, only: [build_conn: 0]
   import Phoenix.LiveViewTest, only: [live_isolated: 3, render: 1]
 
+  import ExUnit.Assertions,
+    only: [assert_receive: 3, assert_receive: 2, assert_receive: 1, flunk: 1]
+
   alias LiveIsolatedComponent.StoreAgent
 
   @assign_updates_event "live_isolated_component_update_assigns_event"
@@ -18,6 +21,11 @@ defmodule LiveIsolatedComponent do
       |> Map.get(:socket)
 
     socket.private.last_info
+  end
+
+  def assert_receive_info(view, message) do
+    view_pid = view.pid
+    assert_receive({:handle_info, view_pid, message})
   end
 
   defmodule View do
@@ -96,7 +104,7 @@ defmodule LiveIsolatedComponent do
       # send a message back to our test process. this let's us
       # leverage assert_receive to block until we've received this
       # message
-      send(get_private(socket, :test_pid), {:handle_info, message})
+      send(get_private(socket, :test_pid), {:handle_info, self(), message})
 
       {:noreply, socket}
     end
